@@ -1,0 +1,43 @@
+# Bytecode files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+env/
+ENV/
+venv/
+pip-wheel-metadata/
+
+# Environment variables
+.env
+.env.*
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Editor-specific
+.vscode/
+.idea/
+
+# Python test cache
+.pytest_cache/
+.coverage
+.tox/
+.mypy_cache/
+
+# Logs
+*.log
+
+# Output from Manim or other renders
+generated/*.mp4
+generated/*.png
+generated/*.svg
+generated/generated_scene.py
+
+# PyInstaller
+dist/
+build/
+*.spec
