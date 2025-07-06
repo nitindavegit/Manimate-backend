@@ -1,4 +1,4 @@
-# Python bytecode
+# Python cache and bytecode
 __pycache__/
 *.py[cod]
 *.pyo
@@ -15,35 +15,29 @@ pip-wheel-metadata/
 .env
 .env.*
 
-# OS files
+# OS and IDE files
 .DS_Store
 Thumbs.db
-
-# IDEs
 .vscode/
 .idea/
 
-# Python test/cache
-.pytest_cache/
-.coverage
-.tox/
-.mypy_cache/
-
-# Logs
+# Manim output and build artifacts
 *.log
-
-# Output from Manim or other renders
+*.mp4
+*.mov
+*.avi
+generate/output/
 generated/*.mp4
 generated/*.png
 generated/*.svg
 generated/generated_scene.py
 
-# Build files
+# Git and build system
+.git
+.gitignore
 dist/
 build/
 *.spec
 *.egg-info/
-
-# Misc
 *.swp
 *.out

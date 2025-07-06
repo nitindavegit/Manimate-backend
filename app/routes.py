@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.llm_handler import get_manim_code
 from app.manim_runner import run_manim
+import traceback
 
 router = APIRouter(
     prefix="/generate",
@@ -25,10 +26,11 @@ async def generate_video(data: PromptModel):
         manim_code = get_manim_code(data.prompt)
         
         # render video
-        filename = run_manim(manim_code)
+        filename = run_manim(manim_code, scene_name="GeneratedScene")
         
         # return video url
         return {"video_url": f"/videos/{filename}"}
         
     except Exception  as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Connection Error: {str(e)}")

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.routes import router as generate_router
+import uvicorn
 
 app = FastAPI(
     title="Manimate API",
@@ -26,3 +27,7 @@ async def root():
 
 # Include API routes
 app.include_router(generate_router)
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000,debug=True)
