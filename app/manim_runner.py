@@ -10,40 +10,31 @@ def to_snake_case(name: str) -> str:
     return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
 
 def find_generated_video(generate_dir, scene_name="GeneratedScene"):
-    """
-    Robust function to find the generated video file in various possible locations
-    """
+    """Robust function to find the generated video file in various possible locations."""
     scene_snake = to_snake_case(scene_name)
     
-    # List of possible file patterns to search for
     search_patterns = [
-        # Standard Manim output patterns
         os.path.join(generate_dir, "videos", scene_snake, "*", "output.mp4"),
         os.path.join(generate_dir, "videos", scene_snake, "output.mp4"),
         os.path.join(generate_dir, "videos", "*", "output.mp4"),
         os.path.join(generate_dir, "videos", "output.mp4"),
-        
-        # Alternative patterns
         os.path.join(generate_dir, "output.mp4"),
         os.path.join(generate_dir, "**", "output.mp4"),
         os.path.join(generate_dir, "**", f"{scene_name}.mp4"),
         os.path.join(generate_dir, "**", f"{scene_snake}.mp4"),
         os.path.join(generate_dir, "**", "generated_scene.mp4"),
-        
-        # Any .mp4 file in the directory structure
         os.path.join(generate_dir, "**", "*.mp4"),
     ]
     
     print(f"🔍 Searching for video file...")
     print(f"📁 Scene name: {scene_name} (snake_case: {scene_snake})")
     
-    # Try each pattern
     for pattern in search_patterns:
         print(f"🔍 Trying pattern: {pattern}")
         matches = glob.glob(pattern, recursive=True)
         if matches:
             print(f"✅ Found {len(matches)} match(es): {matches}")
-            return matches[0]  # Return the first match
+            return matches[0]
     
     return None
 
@@ -66,19 +57,23 @@ def list_directory_contents(directory, max_depth=3, current_depth=0):
     except (PermissionError, OSError) as e:
         print(f"{indent}❌ Error reading directory: {e}")
 
-def run_manim(code: str, scene_name: str = "GeneratedScene"):
-    # Path to /generate folder
+def write_to_file(code: str, filename="generated_scene.py") -> str:
+    """Write code to a Python file in the generate folder and return its full path."""
     generate_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "generate"))
     os.makedirs(generate_dir, exist_ok=True)
 
-    # Write Manim code to generated_scene.py
-    filepath = os.path.join(generate_dir, "generated_scene.py")
-    print(f"📄 Saving generated code to: {filepath}")
-    with open(filepath, "w") as f:
+    path = os.path.join(generate_dir, filename)
+    with open(path, "w") as f:
         f.write(code)
-    print("📂 File written successfully")
+    return path
 
-    # Build Manim render command
+def run_manim(code: str, scene_name: str = "GeneratedScene"):
+    generate_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "generate"))
+    os.makedirs(generate_dir, exist_ok=True)
+
+    filepath = write_to_file(code, "generated_scene.py")
+    print(f"📄 Saving generated code to: {filepath}")
+
     command = [
         sys.executable, "-m", "manim", filepath, scene_name,
         "-qm", "--output_file", "output",
@@ -104,7 +99,6 @@ def run_manim(code: str, scene_name: str = "GeneratedScene"):
     except Exception as e:
         raise Exception(f"🚨 Unexpected error while running Manim: {e}")
 
-    # Print command output for debugging
     print("📋 STDOUT:", result.stdout)
     if result.stderr:
         print("📋 STDERR:", result.stderr)
@@ -115,12 +109,10 @@ def run_manim(code: str, scene_name: str = "GeneratedScene"):
         raise Exception(f"🚫 Manim failed: {error_msg}")
 
     print("✅ Manim rendered successfully.")
-    
-    # Debug: List the entire directory structure
+
     print("\n📁 Directory structure after rendering:")
     list_directory_contents(generate_dir)
-    
-    # Try to find the generated video file
+
     video_file = find_generated_video(generate_dir, scene_name)
     
     if not video_file:
@@ -130,14 +122,12 @@ def run_manim(code: str, scene_name: str = "GeneratedScene"):
         raise Exception("❌ Rendered file not found after exhaustive search")
 
     print(f"✅ Found video file: {video_file}")
-    
-    # Copy to standardized location
+
     target_path = os.path.join(generate_dir, "output.mp4")
-    
-    # Remove existing output.mp4 if it exists
+
     if os.path.exists(target_path):
         os.remove(target_path)
-    
+
     shutil.copy(video_file, target_path)
     print(f"✅ Copied output from {video_file} to {target_path}")
 
