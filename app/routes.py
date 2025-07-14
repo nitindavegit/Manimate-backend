@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.llm_handler import get_manim_code
 from app.manim_runner import run_manim, write_to_file
 import traceback
+import logging
 
 router = APIRouter(
     prefix="/generate",
@@ -26,7 +27,7 @@ async def generate_video(data: PromptModel):
             manim_code = get_manim_code(data.prompt)
         except Exception as e:
             if "API_LIMIT_REACHED" in str(e):
-                print("⚠️ API limit reached. Returning fallback video.")
+                logging.warning("⚠️ API limit reached. Returning fallback video.")
                 fallback_code = """
 from manim import *
 
@@ -46,7 +47,7 @@ class GeneratedScene(Scene):
         return {"video_url": f"/videos/{filename}"}
 
     except Exception as e:
-        print("⚠️ Primary rendering failed. Falling back to error scene.")
+        logging.warning("⚠️ Primary rendering failed. Falling back to error scene.")
         traceback.print_exc()
 
         fallback_code = """
@@ -63,7 +64,7 @@ class GeneratedScene(Scene):
             fallback_video = run_manim(fallback_code, scene_name="GeneratedScene")
             return {"video_url": f"/videos/{fallback_video}"}
         except Exception as fallback_error:
-            print(f"🚨 Fallback rendering also failed: {fallback_error}")
+            logging.warning(f"🚨 Fallback rendering also failed: {fallback_error}")
             traceback.print_exc()
             raise HTTPException(
                 status_code=500,
