@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.routes import router as generate_router
 import uvicorn
+import os
 
 app = FastAPI(
     title="Manimate API",
@@ -19,6 +20,8 @@ app.add_middleware(
     allow_credentials = True
 )
 
+
+os.makedirs("generate/videos", exist_ok=True)
 # Mount static files (video outputs)
 app.mount("/videos",StaticFiles(directory="generate"), name="videos")
 @app.get("/")
