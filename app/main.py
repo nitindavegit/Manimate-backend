@@ -21,7 +21,7 @@ app.add_middleware(
 )
 
 
-os.makedirs("generate/videos", exist_ok=True)
+os.makedirs("generate", exist_ok=True)
 # Mount static files (video outputs)
 app.mount("/videos",StaticFiles(directory="generate"), name="videos")
 @app.get("/")

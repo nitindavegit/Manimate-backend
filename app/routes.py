@@ -39,12 +39,12 @@ class GeneratedScene(Scene):
 """
                 fallback_path = write_to_file(fallback_code, "api_limit_scene.py")
                 fallback_video = run_manim(fallback_code, scene_name="GeneratedScene")
-                return {"video_url": f"/videos/{fallback_video}"}
+                return {"video_url": f"https://manimate-backend.onrender.com/videos/{fallback_video}"}
             raise  # Reraise if it's not API exhaustion
 
         # If we got valid code, try rendering
         filename = run_manim(manim_code, scene_name="GeneratedScene")
-        return {"video_url": f"/videos/{filename}"}
+        return {"video_url": f"https://manimate-backend.onrender.com/videos/{filename}"}
 
     except Exception as e:
         logging.warning("⚠️ Primary rendering failed. Falling back to error scene.")
