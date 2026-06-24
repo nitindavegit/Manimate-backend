@@ -12,56 +12,55 @@ client = OpenAI(
 
 def get_manim_code(prompt: str) -> str:
     system_prompt = (
-        "You are a Manim Community v0.19.0 expert focused on producing always-valid and runnable Python code.\n\n"
+        "You are a Manim Community v0.19.0 expert producing clean, well-positioned, always-valid Python code.\n\n"
 
-        "## FORMAT & STRUCTURE\n"
-        "- Output ONLY valid Python code — absolutely no markdown, comments, or explanations.\n"
-        "- First lines MUST be:\n"
+        "## FORMAT\n"
+        "- Output ONLY valid Python code — no markdown, no explanations.\n"
+        "- Start with:\n"
         "    from manim import *\n"
         "    import numpy as np\n"
-        "- Define exactly ONE class: `GeneratedScene`, inheriting from `Scene` (2D) or `ThreeDScene` (3D).\n"
-        "- Must have a `def construct(self):` method, ending with `self.wait(2)`.\n\n"
+        "- Define exactly ONE class: `GeneratedScene(Scene)` (2D) or `GeneratedScene(ThreeDScene)` (3D).\n"
+        "- Must have `def construct(self):` ending with `self.wait(2)`.\n\n"
 
-        "## SUPPORTED ELEMENTS\n"
-        "- Text (use `Text(...)`, font_size must be between 36 and 60 only).\n"
-        "- Math: use `MathTex(...)` for equations.\n"
+        "## ELEMENTS\n"
+        "- Text: `Text(\"...\", font_size=36)` — font_size between 24 and 60.\n"
+        "- Math: `MathTex(...)` for equations.\n"
         "- Shapes: `Circle`, `Square`, `Dot`, `Line`, `Arrow`, `Rectangle`, `Polygon`.\n"
-        "- Graphs: Use `Axes(...).plot(...)`. Label with `axes.get_graph_label(graph, label=\"...\", x_val=...)`.\n"
-        "- NEVER add `font_size` to `get_graph_label()` — this is NOT supported in v0.19.0.\n"
-        "- Shade area: `axes.get_area(graph, x_range=[a, b], color=..., opacity=0.5)`.\n\n"
+        "- Graphs: `Axes(...).plot(...)`. Label with `axes.get_graph_label(graph, label=\"...\", x_val=...)`.\n"
+        "- NEVER add `font_size` to `get_graph_label()`.\n"
+        "- Shade: `axes.get_area(graph, x_range=[a, b], color=..., opacity=0.3)`.\n\n"
 
-        "## SPATIAL & VISUAL RULES\n"
-        "- All elements MUST stay inside the visible frame (~14 units wide).\n"
-        "- At the end of construct(), group all elements with VGroup(*self.mobjects), then scale_to_fit_width(10) and move_to(ORIGIN).\n"
-        "- Separate text labels from diagrams.\n"
-        "- Use VGroup(...).arrange(...) with sufficient buff (≥1.5) between labels or diagram parts.\n"
-        "- Scale main visuals using .scale_to_fit_width(10) or .scale(0.8) to prevent overflow.\n"
-        "- Always place labels above diagram using .next_to(..., UP, buff=0.5).\n"
-        "- Avoid text touching other text or objects — use .arrange() and .next_to() consistently.\n\n"
+        "## LAYOUT RULES (CRITICAL — elements MUST NOT overlap or go off-screen)\n"
+        "- Frame is ~14 units wide × ~8 units tall. Keep everything within these bounds.\n"
+        "- Use `scale_to_fit_width(8)` on large elements to ensure they fit with margin.\n"
+        "- Use `VGroup(...).arrange(RIGHT, buff=1.0)` or `.arrange(DOWN, buff=0.8)` to space elements.\n"
+        "- Place text labels above visuals with `.next_to(visual, UP, buff=0.5)`.\n"
+        "- For multi-part scenes, use `VGroup(...).arrange(DOWN, buff=1.0)` to stack sections vertically.\n"
+        "- Keep at most 4-5 elements visible at once to avoid clutter.\n"
+        "- If showing a sequence (like Fibonacci numbers), show at most 6-8 terms.\n"
+        "- Use `MathTex` for ALL formulas — never use `Text` with math symbols.\n\n"
 
-        "## 3D SCENE RULES\n"
-        "- Use `ThreeDScene` ONLY when needed.\n"
-        "- Valid 3D objects: `Surface`, `ThreeDAxes`, `Sphere`, `Cube`, `Cylinder`.\n"
-        "- DO NOT use `ParametricSurface` — use `Surface(...)` with `fill_color`, `stroke_color`, etc.\n"
-        "- Set camera using: `self.set_camera_orientation(phi=75*DEGREES, theta=30*DEGREES)`.\n"
-        "- For movement, use: `self.begin_ambient_camera_rotation(rate=0.2)`.\n\n"
+        "## ANIMATIONS\n"
+        "- Use `Write`, `Create`, `FadeIn`, `Transform`, `FadeOut`, `Uncreate`.\n"
+        "- Keep total animation count between 3 and 10 for clarity.\n\n"
 
-        "## STABILITY & SAFETY\n"
-        "- Use only methods and arguments supported in Manim Community v0.19.0.\n"
-        "- Avoid deprecated or experimental features.\n"
-        "- Ensure animations are smooth using `Write`, `Create`, `FadeIn`, or `Transform`.\n"
-        "- NEVER crash — return fallback if concept is too abstract.\n\n"
+        "## 3D\n"
+        "- Use `ThreeDScene` with `self.set_camera_orientation(phi=75*DEGREES, theta=30*DEGREES)`.\n"
+        "- Valid 3D: `Surface`, `ThreeDAxes`, `Sphere`, `Cube`, `Cylinder`.\n"
+        "- NO `ParametricSurface` — use `Surface(...)`.\n\n"
+
+        "## IMPORTANT: Do NOT add final layout/grouping code at the end of construct(). "
+        "The system handles final positioning. Just create and animate your elements.\n\n"
 
         "## FALLBACK (if concept is not visualizable)\n"
         "from manim import *\n"
         "import numpy as np\n\n"
         "class GeneratedScene(Scene):\n"
         "    def construct(self):\n"
-        "        self.play(Write(Text(\"❌ Visualization not supported\", font_size=36, color=RED)))\n"
+        "        self.play(Write(Text(\"Visualization not supported\", font_size=36, color=RED)))\n"
         "        self.wait(2)\n\n"
 
-        "## GOAL\n"
-        "Generate clear, organized, and educational Manim scenes that ALWAYS render without errors. Ensure visual clarity, spacing, and compatibility with v0.19.0."
+        "Generate clean, organized, educational animations. Every element must be clearly visible and spaced."
     )
 
     try:
@@ -155,10 +154,13 @@ def get_manim_code(prompt: str) -> str:
                 lines.append("        self.wait(2)")
             raw = '\n'.join(lines)
 
-        # Sanitize font sizes > 64
-        raw = re.sub(r"font_size\s*=\s*(\d{3,})", "font_size=60", raw)
+        # Sanitize font sizes: cap anything over 60
+        def _cap_font_size(m):
+            val = int(m.group(1))
+            return f"font_size={min(val, 60)}"
+        raw = re.sub(r"font_size\s*=\s*(\d+)", _cap_font_size, raw)
 
-        # Inject auto-layout
+        # Inject smart auto-layout (runs BEFORE self.wait() so layout is visible)
         if "def construct(self):" in raw:
             try:
                 lines = raw.split('\n')
@@ -166,27 +168,69 @@ def get_manim_code(prompt: str) -> str:
                 construct_indent = len(lines[construct_start]) - len(lines[construct_start].lstrip()) + 4
                 indent = ' ' * construct_indent
 
-                layout_block = f"\n{indent}try:\n" \
-                               f"{indent}    from manim import VMobject\n" \
-                               f"{indent}    all_mobs = self.mobjects\n" \
-                               f"{indent}    text_labels = [m for m in all_mobs if isinstance(m, Text)]\n" \
-                               f"{indent}    non_text = [m for m in all_mobs if isinstance(m, VMobject) and not isinstance(m, Text)]\n" \
-                               f"{indent}    diagram = VGroup(*non_text)\n" \
-                               f"{indent}    diagram.scale_to_fit_width(10)\n" \
-                               f"{indent}    diagram.move_to(ORIGIN)\n" \
-                               f"{indent}    if len(text_labels) > 1:\n" \
-                               f"{indent}        labels = VGroup(*text_labels).arrange(RIGHT, buff=1.5)\n" \
-                               f"{indent}        labels.next_to(diagram, UP, buff=0.5)\n" \
-                               f"{indent}    elif len(text_labels) == 1:\n" \
-                               f"{indent}        text_labels[0].next_to(diagram, UP, buff=0.5)\n" \
-                               f"{indent}except Exception as layout_error:\n" \
-                               f"{indent}    pass"
+                # Find the last self.wait() to insert layout BEFORE it
+                wait_indices = [i for i, line in enumerate(lines) if "self.wait(" in line]
+                insert_at = wait_indices[-1] if wait_indices else len(lines) - 1
 
-                insert_at = len(lines) - 1
+                layout_block = (
+                    f"\n{indent}# Smart auto-layout\n"
+                    f"{indent}try:\n"
+                    f"{indent}    _mobs = [m for m in self.mobjects if m in self.mobjects]\n"
+                    f"{indent}    _texts = [m for m in _mobs if isinstance(m, Text)]\n"
+                    f"{indent}    _math = [m for m in _mobs if isinstance(m, MathTex)]\n"
+                    f"{indent}    _visuals = [m for m in _mobs if isinstance(m, VMobject) and not isinstance(m, (Text, MathTex))]\n"
+                    f"\n"
+                    f"{indent}    SAFE_W, SAFE_H = 12, 7\n"
+                    f"\n"
+                    f"{indent}    # 1. Scale + center visual elements (shapes, graphs, etc.)\n"
+                    f"{indent}    if _visuals:\n"
+                    f"{indent}        _vg = VGroup(*_visuals)\n"
+                    f"{indent}        _s = min(SAFE_W / max(_vg.width, 0.01), SAFE_H / max(_vg.height, 0.01), 1.0)\n"
+                    f"{indent}        if _s < 1.0:\n"
+                    f"{indent}            _vg.scale(_s)\n"
+                    f"{indent}        _vg.move_to(ORIGIN)\n"
+                    f"\n"
+                    f"{indent}    # 2. Position math below visuals\n"
+                    f"{indent}    if _math:\n"
+                    f"{indent}        _mg = VGroup(*_math)\n"
+                    f"{indent}        if len(_math) > 1:\n"
+                    f"{indent}            _mg.arrange(DOWN, buff=0.5)\n"
+                    f"{indent}        _mg.scale_to_fit_width(min(SAFE_W, _mg.width))\n"
+                    f"{indent}        if _visuals:\n"
+                    f"{indent}            _mg.next_to(_vg, DOWN, buff=0.5)\n"
+                    f"{indent}        else:\n"
+                    f"{indent}            _mg.move_to(ORIGIN)\n"
+                    f"\n"
+                    f"{indent}    # 3. Position text labels above everything\n"
+                    f"{indent}    if _texts:\n"
+                    f"{indent}        _tg = VGroup(*_texts)\n"
+                    f"{indent}        if len(_texts) > 1:\n"
+                    f"{indent}            _tg.arrange(RIGHT, buff=0.8)\n"
+                    f"{indent}        _tg.scale_to_fit_width(min(SAFE_W, _tg.width))\n"
+                    f"{indent}        if _visuals:\n"
+                    f"{indent}            _tg.next_to(_vg, UP, buff=0.5)\n"
+                    f"{indent}        elif _math:\n"
+                    f"{indent}            _tg.next_to(_mg, UP, buff=0.5)\n"
+                    f"{indent}        else:\n"
+                    f"{indent}            _tg.move_to(ORIGIN)\n"
+                    f"\n"
+                    f"{indent}    # 4. Final bounds check — nudge anything that drifted off-screen\n"
+                    f"{indent}    for _m in self.mobjects:\n"
+                    f"{indent}        if hasattr(_m, 'get_center'):\n"
+                    f"{indent}            _x, _y = _m.get_center()[:2]\n"
+                    f"{indent}            if abs(_x) > 6.5:\n"
+                    f"{indent}                _m.shift(LEFT * (_x - 6.0 * (1 if _x > 0 else -1)))\n"
+                    f"{indent}            if abs(_y) > 3.5:\n"
+                    f"{indent}                _m.shift(DOWN * (_y - 3.0 * (1 if _y > 0 else -1)))\n"
+                    f"{indent}except Exception:\n"
+                    f"{indent}    import logging\n"
+                    f"{indent}    logging.warning(\"Auto-layout skipped\", exc_info=True)\n"
+                )
+
                 lines.insert(insert_at, layout_block)
                 raw = '\n'.join(lines)
             except Exception as layout_inject_error:
-                logging.warning("⚠️ Auto-layout injection failed: %s", layout_inject_error)
+                logging.warning("Auto-layout injection failed: %s", layout_inject_error)
 
         return raw
 

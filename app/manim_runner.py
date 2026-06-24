@@ -44,10 +44,21 @@ def write_to_file(code: str, filename="generated_scene.py") -> str:
         f.write(code)
     return path
 
+def cleanup_old_files(generate_dir: str, keep_latest: int = 3):
+    """Remove old .mp4 files keeping only the `keep_latest` most recent."""
+    try:
+        mp4_files = glob.glob(os.path.join(generate_dir, "*.mp4"))
+        mp4_files.sort(key=os.path.getmtime, reverse=True)
+        for f in mp4_files[keep_latest:]:
+            os.remove(f)
+    except Exception:
+        pass
+
 def run_manim(code: str, scene_name: str = "GeneratedScene"):
     generate_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "generate"))
     os.makedirs(generate_dir, exist_ok=True)
 
+    cleanup_old_files(generate_dir, keep_latest=3)
     filepath = write_to_file(code, "generated_scene.py")
 
     command = [
@@ -56,34 +67,36 @@ def run_manim(code: str, scene_name: str = "GeneratedScene"):
         "--media_dir", generate_dir
     ]
 
-    try:
-        result = subprocess.run(
-            command,
-            cwd=generate_dir,
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
-    except KeyboardInterrupt:
-        raise
-    except subprocess.TimeoutExpired:
-        raise Exception("⏱️ Manim rendering timed out (over 120 seconds).")
-    except FileNotFoundError as e:
-        raise Exception(f"❌ Manim or Python not installed properly: {e}")
-    except Exception as e:
-        raise Exception(f"🚨 Unexpected error while running Manim: {e}")
+    last_error = None
+    for attempt in range(1, 3):
+        try:
+            result = subprocess.run(
+                command,
+                cwd=generate_dir,
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+            if result.returncode == 0:
+                logging.info("Manim rendered successfully.")
+                break
 
-    if result.stderr:
-        logging.warning("📋 STDERR: %s", result.stderr)
+            last_error = result.stderr.strip() or result.stdout.strip() or f"Exit code {result.returncode}"
+            logging.warning("Attempt %d failed: %s", attempt, last_error[:200])
 
-    if result.returncode != 0:
-        logging.warning("❌ Manim failed")
-        error_msg = result.stderr.strip() or result.stdout.strip() or "Unknown error"
-        raise Exception(f"🚫 Manim failed: {error_msg}")
+        except subprocess.TimeoutExpired:
+            last_error = "Rendering timed out (over 300 seconds)"
+            logging.warning("Attempt %d timed out", attempt)
+        except FileNotFoundError as e:
+            raise Exception(f"Manim or Python not installed properly: {e}")
+        except Exception as e:
+            last_error = str(e)
+            logging.warning("Attempt %d error: %s", attempt, last_error[:200])
 
-    logging.info("✅ Manim rendered successfully.")
-    logging.info("\n📁 Directory structure after rendering:")
-    # list_directory_contents(generate_dir) # Removed as per edit hint
+        if attempt == 1:
+            logging.info("Retrying rendering...")
+        else:
+            raise Exception(f"Manim failed after 2 attempts: {last_error}")
 
     video_file = find_generated_video(generate_dir, scene_name)
     
@@ -97,5 +110,14 @@ def run_manim(code: str, scene_name: str = "GeneratedScene"):
         os.remove(target_path)
 
     shutil.copy(video_file, target_path)
+
+    # Clean up Manim intermediate files to save disk space
+    for subdir in ["videos", "partial_movie_files", "images", "text", "tex"]:
+        path = os.path.join(generate_dir, subdir)
+        if os.path.exists(path):
+            try:
+                shutil.rmtree(path)
+            except Exception:
+                pass
 
     return "output.mp4"
