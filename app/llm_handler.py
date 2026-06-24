@@ -1,6 +1,15 @@
 import logging
 import re
-from openai import OpenAI, RateLimitError
+from openai import OpenAI
+from openai import (
+    RateLimitError,
+    AuthenticationError,
+    APITimeoutError,
+    APIConnectionError,
+    InternalServerError,
+    APIError,
+    BadRequestError,
+)
 from app.config import OPENAI_API_KEY, OPENAI_BASE_URL
 
 logging.basicConfig(level=logging.INFO)
@@ -40,9 +49,16 @@ def get_manim_code(prompt: str) -> str:
         "- If showing a sequence (like Fibonacci numbers), show at most 6-8 terms.\n"
         "- Use `MathTex` for ALL formulas — never use `Text` with math symbols.\n\n"
 
-        "## ANIMATIONS\n"
-        "- Use `Write`, `Create`, `FadeIn`, `Transform`, `FadeOut`, `Uncreate`.\n"
-        "- Keep total animation count between 3 and 10 for clarity.\n\n"
+        "## ANIMATIONS (CRITICAL — must render in <2 minutes at medium quality)\n"
+        "- Use at most 5 `self.play()` calls. Each call adds ~10-30s of render time.\n"
+        "- Use `FadeIn`/`FadeOut` — they are 3-5x faster than `Write`/`Uncreate`/`Create`.\n"
+        "- Set `run_time=0.5` on EVERY `self.play()` call.\n"
+        "- Batch elements: `self.play(FadeIn(VGroup(title, diagram), run_time=0.5))`.\n"
+        "- For sequential reveals use `lag_ratio`: `self.play(FadeIn(VGroup(a,b,c), lag_ratio=0.3, run_time=1.5))` — this reveals one element at a time in a single play call.\n"
+        "- NEVER use `Write` on `MathTex` (traces each character — very slow).\n"
+        "- Avoid `Transform` — use `FadeOut` old + `FadeIn` new instead.\n"
+        "- Do NOT use `Create` on shapes — use `FadeIn`.\n"
+        "- Do NOT use `Write` on Text — use `FadeIn`.\n\n"
 
         "## 3D\n"
         "- Use `ThreeDScene` with `self.set_camera_orientation(phi=75*DEGREES, theta=30*DEGREES)`.\n"
@@ -160,6 +176,25 @@ def get_manim_code(prompt: str) -> str:
             return f"font_size={min(val, 60)}"
         raw = re.sub(r"font_size\s*=\s*(\d+)", _cap_font_size, raw)
 
+        # Performance validation & auto-fix: replace slow animations, add run_time
+        play_count = raw.count("self.play(")
+        if play_count > 5:
+            logging.warning("Code has %d self.play() calls — may be slow", play_count)
+        # Replace Write with FadeIn (3-5x faster, same visual effect)
+        raw = raw.replace("Write(", "FadeIn(")
+        # Replace Create with FadeIn (faster for shapes)
+        raw = raw.replace("Create(", "FadeIn(")
+        # Add run_time=0.5 to any self.play() that doesn't have it
+        lines = raw.split('\n')
+        fixed_lines = []
+        for line in lines:
+            if "self.play(" in line and "run_time" not in line and "self.wait(" not in line:
+                line = line.rstrip()
+                if line.endswith(")"):
+                    line = line[:-1] + ", run_time=0.5)"
+            fixed_lines.append(line)
+        raw = '\n'.join(fixed_lines)
+
         # Inject smart auto-layout (runs BEFORE self.wait() so layout is visible)
         if "def construct(self):" in raw:
             try:
@@ -234,15 +269,33 @@ def get_manim_code(prompt: str) -> str:
 
         return raw
 
-    except RateLimitError:
-        raise Exception("API_LIMIT_REACHED")
+    except RateLimitError as e:
+        err_str = str(e).lower()
+        if "insufficient_quota" in err_str or "exceeded your current quota" in err_str or "quota" in err_str:
+            raise Exception("QUOTA_EXHAUSTED: Your OpenAI API key has run out of credits. Top up at https://platform.openai.com/account/billing")
+        raise Exception("RATE_LIMITED: Too many requests to OpenAI. Wait a minute and try again.")
+
+    except AuthenticationError:
+        raise Exception("INVALID_API_KEY: Your OpenAI API key is invalid or expired. Check your OPENAI_API_KEY in .env")
+
+    except BadRequestError as e:
+        raise Exception(f"BAD_REQUEST: OpenAI rejected the request: {e}")
+
+    except (APITimeoutError, APIConnectionError):
+        raise Exception("NETWORK_ERROR: Could not reach OpenAI API. Check your internet or OPENAI_BASE_URL in .env")
+
+    except InternalServerError:
+        raise Exception("OPENAI_DOWN: OpenAI servers are experiencing issues. Try again later.")
+
+    except APIError as e:
+        raise Exception(f"OPENAI_ERROR: OpenAI API error: {e}")
 
     except Exception as e:
-        logging.warning("🚫 LLM generation failed: %s", e)
+        logging.warning("LLM generation failed: %s", e)
         return (
             "from manim import *\nimport numpy as np\n\n"
             "class GeneratedScene(Scene):\n"
             "    def construct(self):\n"
-            "        self.play(Write(Text(\"❌ Error generating animation\", font_size=36)))\n"
+            "        self.play(Write(Text(\"Error generating animation\", font_size=36)))\n"
             "        self.wait(2)"
         )

@@ -67,36 +67,26 @@ def run_manim(code: str, scene_name: str = "GeneratedScene"):
         "--media_dir", generate_dir
     ]
 
-    last_error = None
-    for attempt in range(1, 3):
-        try:
-            result = subprocess.run(
-                command,
-                cwd=generate_dir,
-                capture_output=True,
-                text=True,
-                timeout=300
-            )
-            if result.returncode == 0:
-                logging.info("Manim rendered successfully.")
-                break
+    try:
+        result = subprocess.run(
+            command,
+            cwd=generate_dir,
+            capture_output=True,
+            text=True,
+            timeout=600
+        )
+    except subprocess.TimeoutExpired:
+        raise Exception("Rendering timed out (over 600 seconds). Please try a simpler prompt.")
+    except FileNotFoundError as e:
+        raise Exception(f"Manim or Python not installed properly: {e}")
+    except Exception as e:
+        raise Exception(f"Manim execution failed: {e}")
 
-            last_error = result.stderr.strip() or result.stdout.strip() or f"Exit code {result.returncode}"
-            logging.warning("Attempt %d failed: %s", attempt, last_error[:200])
+    if result.returncode != 0:
+        error_msg = result.stderr.strip() or result.stdout.strip() or f"Exit code {result.returncode}"
+        raise Exception(f"Manim failed: {error_msg}")
 
-        except subprocess.TimeoutExpired:
-            last_error = "Rendering timed out (over 300 seconds)"
-            logging.warning("Attempt %d timed out", attempt)
-        except FileNotFoundError as e:
-            raise Exception(f"Manim or Python not installed properly: {e}")
-        except Exception as e:
-            last_error = str(e)
-            logging.warning("Attempt %d error: %s", attempt, last_error[:200])
-
-        if attempt == 1:
-            logging.info("Retrying rendering...")
-        else:
-            raise Exception(f"Manim failed after 2 attempts: {last_error}")
+    logging.info("Manim rendered successfully.")
 
     video_file = find_generated_video(generate_dir, scene_name)
     
